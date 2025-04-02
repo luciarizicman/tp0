@@ -17,20 +17,36 @@ int iniciar_servidor(void)
 	hints.ai_flags = AI_PASSIVE;
 
 	err = getaddrinfo(NULL, PUERTO, &hints, &server_info);
+    if (err != 0) {
+        log_error(logger, "Error en getaddrinfo: %s", gai_strerror(err));
+        return -1;
+    }	
 
 	// Creamos el socket de escucha del servidor
+    log_info(logger, "Creando socket...");	
 
 	socket_servidor = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
 
+    if (socket_servidor == -1) {
+        log_error(logger, "Error al crear el socket.");
+        return -1;
+    }
 	// Asociamos el socket a un puerto
-
-	err = setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEPORT, &(int){1}, sizeof(int));
+    log_info(logger, "Asociando socket al puerto...");
+	//err = setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEPORT, &(int){1}, sizeof(int));
 
 	err = bind(socket_servidor, server_info->ai_addr, server_info->ai_addrlen);
-
+    if (err == -1) {
+        log_error(logger, "Error en bind().");
+        return -1;
+    }
 	// Escuchamos las conexiones entrantes
-
+    log_info(logger, "Escuchando conexiones...");
 	err = listen(socket_servidor, SOMAXCONN);	
+    if (err == -1) {
+        log_error(logger, "Error en listen().");
+        return -1;
+    }
 
 	log_trace(logger, "Listo para escuchar a mi cliente");
 
@@ -43,24 +59,15 @@ int esperar_cliente(int socket_servidor)
 {
 	// Aceptamos un nuevo cliente
 	int socket_cliente;
-	//log_info(logger, "Esperando cliente...");
+	log_info(logger, "Esperando cliente...");
 
 	socket_cliente = accept(socket_servidor, NULL, NULL);
+    if (socket_cliente == -1) {
+        log_error(logger, "Error al aceptar conexión.");
+        return -1;
+    }
 
 	log_info(logger, "Se conecto un cliente!");
-
-	size_t bytes;
-
-	int32_t handshake;
-	int32_t resultOk = 0;
-	int32_t resultError = -1;
-
-	bytes = recv(socket_cliente, &handshake, sizeof(int32_t), MSG_WAITALL);
-	if (handshake == 1) {
-		bytes = send(socket_cliente, &resultOk, sizeof(int32_t), 0);
-	} else {
-		bytes = send(socket_cliente, &resultError, sizeof(int32_t), 0);
-	}
 
 	return socket_cliente;
 }
